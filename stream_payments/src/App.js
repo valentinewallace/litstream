@@ -10,6 +10,7 @@ class App extends Component {
     super(props); 
     this.state = {
       invoice: null,
+      r_hash: null,
       amountPaid: 0,
       timerID: null,
       player: null
@@ -49,7 +50,13 @@ class App extends Component {
     xhttp.onreadystatechange = () => {
         if (xhttp.readyState === 4) {
           if (xhttp.status === 200) {
-            this.setState({invoice: xhttp.responseText}); 
+            let response = JSON.parse(xhttp.responseText)
+            console.log("about to set state w/ r_hash")
+            console.log(response.r_hash)
+            this.setState({
+              invoice: response.payment_request, 
+              r_hash: response.r_hash
+            }); 
           } else {
             this.setState({invoice: "failed to get invoice"})
           }
@@ -86,7 +93,13 @@ class App extends Component {
           }
         }
     };
-    xhttp.open("GET", "http://localhost:12344/check_payment", true);
+    console.log("about to check payment w/ r_hash:")
+    console.log(this.state.r_hash)
+    // xhttp.open("GET", "http://localhost:12344/check_payment/" + encodeURIComponent(this.state.r_hash), true);
+    xhttp.open("GET", "http://localhost:12344/" + encodeURIComponent(this.state.r_hash), true);
+    // xhttp.open("GET", "http://localhost:12344/test", true);
+
+    // xhttp.open("GET", "http://localhost:12344/check_payment/" + this.state.r_hash, true);
     xhttp.send(null);
   }
 
@@ -132,10 +145,19 @@ class App extends Component {
 
   componentWillUpdate(nextProps, nextState) {
     if (this.state.invoice !== nextState.invoice) {
+      console.log("about to pay invoice")
       this.payInvoice(nextState.invoice)
-      this.checkPayment()
       this.setState({amountPaid: this.state.amountPaid + 1000})
     }
+
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    if (this.state.r_hash !== prevState.r_hash && this.state.r_hash != null) {
+      console.log("about to check payment w/ new r_hash")
+      console.log(this.state.r_hash)
+      this.checkPayment()      
+    }    
   }
 
   componentWillUnmount() {
