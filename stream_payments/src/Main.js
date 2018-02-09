@@ -21,12 +21,9 @@ class Main extends Component {
     this.state = {
       videos: videoObjs,
       clientIP: null,
-      clientPubKey: null,
-      clientPeerID: null,
-      clientInfo: "Attempting to connect to client...",
       paymentFailed: false
     }; 
-    this.connectClient();
+    this.getClientIP();
   }
 
   render() {
@@ -64,46 +61,7 @@ class Main extends Component {
     );
   }
 
-  async connectClient() {
-    const ip = await this.getClientIP();
-    if (ip == null) {
-      this.setState({clientInfo: "Failed to retrieve client IP."});
-      return;
-    }
-    const clientInfo = await this.getClientInfo(ip);
-    if (clientInfo == null) {
-      this.setState({clientInfo: "Failed to retrieve client pubkey."});
-      return;
-    }
-    const pubkey = clientInfo[0];
-    const port = clientInfo[1];
-    const peerAdded = await this.addPeer(pubkey, ip, port);
-    if (peerAdded) {
-      this.setState({peerAdded: true});
-      this.setState({clientInfo: "Connected to client."});
-    } else {
-      this.setState({peerAdded: false});
-    }
-  }
-
-  addPeer(pubkey, ip, port) {
-    return new Promise(resolve => {
-      let xhttp = new XMLHttpRequest();
-      xhttp.onreadystatechange = () => {
-          if (xhttp.readyState === 4) {
-            if (xhttp.status === 200) {
-              this.setState({clientPeerID: xhttp.responseText});
-              resolve(true);
-            } else {
-              resolve(false);
-            }
-          }
-      };
-      xhttp.open("GET", "http://localhost:12344/addpeer/?pubkey=" + pubkey + "&host=" + ip + "&port=" + port, true);
-      xhttp.send(null);
-    });    
-  }
-
+  // Retrieve client IP address to send them invoices.
   getClientIP() {
     return new Promise(resolve => {
       let xhttp = new XMLHttpRequest();
@@ -111,35 +69,15 @@ class Main extends Component {
           if (xhttp.readyState === 4) {
             if (xhttp.status === 200) {
               let ip = JSON.parse(xhttp.responseText).ip;
-              this.setState({clientIP: ip});
-              resolve(ip);
+              this.setState({clientIP: ip, clientInfo: "Retrieved client IP."});
+              resolve(true);
             } else {
-              this.setState({ipFetchError: "Failed to fetch client IP."});
-              resolve(null);
+              this.setState({clientInfo: "Failed to fetch client IP."});
+              resolve(false);
             }
           }
       };
       xhttp.open("GET", "http://freegeoip.net/json/", true);
-      xhttp.send(null);
-    });
-  }
-
-  getClientInfo(ip) {
-    return new Promise(resolve => {
-      let xhttp = new XMLHttpRequest();
-      xhttp.onreadystatechange = () => {
-          if (xhttp.readyState === 4) {
-            if (xhttp.status === 200) {
-              let response = JSON.parse(xhttp.responseText);
-              resolve([response.pubkey, response.port]);
-              this.setState({clientPubKey: response.pubkey});
-            } else {
-              resolve(null);
-            }
-          }
-      };
-      let url = "http://" + ip + ":12348/getpeerinfo";
-      xhttp.open("GET", url, true);
       xhttp.send(null);
     });
   }
@@ -172,6 +110,13 @@ class Main extends Component {
       this.processInvoiceFailure(ind, "Payment failed.");
       return;
     }
+    if (this.state.clientIP == null) {
+      let IPsuccess = await this.getClientIP()
+      if (IPsuccess == false) {
+        this.processInvoiceFailure(ind, "Failed to fetch client IP.");
+        return;
+      }
+    }
     const invoice = await this.generateInvoice();
     if (invoice == null) {
       this.processInvoiceFailure(ind, "Invoice generation failed.");
@@ -189,7 +134,6 @@ class Main extends Component {
       return;
     } 
     this.processInvoiceSuccess(ind);
-    // await this._sleep(1000);
     this.checkPayment(r_hash);
   }
 
@@ -235,7 +179,7 @@ class Main extends Component {
         if (xhttp.readyState === 4) {
           if (xhttp.status === 200) {
             if (xhttp.responseText === "True") {
-              this.setState({paymentFailed: false});
+              this.setState({paymentFailed: false, clientInfo: "Connected to client."});
             } else {
               this.setState({paymentFailed: true});
             }
@@ -274,8 +218,7 @@ class Main extends Component {
     this.setState({videos: updatedVideos});
   }
 
-  _onPause(ind) {
-    console.log("pausing video, clearing timer");
+  _onStop(ind) {
     const updatedVideos = this.state.videos.slice();
     const video = updatedVideos[ind];
     if (video.timerID != null) {
@@ -283,31 +226,22 @@ class Main extends Component {
     }
     video.timerID = null;
     updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos});
+    this.setState({videos: updatedVideos});    
+  }
+
+  _onPause(ind) {
+    console.log("pausing video, clearing timer");
+    this._onStop(ind);
   }
 
   _onEnd(ind) {
     console.log("video ended, clearing timer");
-    const updatedVideos = this.state.videos.slice();
-    const video = updatedVideos[ind];
-    if (video.timerID != null) {
-      clearInterval(video.timerID);
-    }
-    video.timerID = null;
-    updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos});
+    this._onStop(ind);
   }
 
   _onError(ind) {
     console.log("video errored, clearing timer");
-    const updatedVideos = this.state.videos.slice();
-    const video = updatedVideos[ind];
-    if (video.timerID != null) {
-      clearInterval(video.timerID);
-    }
-    video.timerID = null;
-    updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos});
+    this._onStop(ind);
   }
 }
 

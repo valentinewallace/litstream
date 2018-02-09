@@ -1,28 +1,27 @@
 import rpc_pb2 as ln, rpc_pb2_grpc as lnrpc
 import grpc
 from flask import Flask
-from flask import request
 from flask_cors import CORS
-from flask.json import jsonify
-from urllib2 import urlopen
 
-LND_PORT = "10003"
+# Change this to the port your lightning node is running on: default 10009
+LND_PORT = "10009"
+# Change this to the path to your tls.cert
+# keep in /home/<username> format, not ~
 PATH_TO_TLS_CERT = '/home/valentine/.lnd/tls.cert'
 
+SERVER_ADDR = "03a2102f6978b9e5c6a2dd39697f95b36a7992a60ca65e0316dcd517108e8da171@52.53.90.150:10009"
 cert = open('/home/valentine/.lnd/tls.cert').read()
 creds = grpc.ssl_channel_credentials(cert)
-channel = grpc.secure_channel('localhost:10003', creds)
+channel = grpc.secure_channel('localhost:' + LND_PORT, creds)
 stub = lnrpc.LightningStub(channel)
+
+def addpeer():
+    req = ln.ConnectPeerRequest(addr=SERVER_ADDR)
+    res = stub.ConnectPeer(req)
+addpeer()
 
 app = Flask(__name__)
 CORS(app)
-
-@app.route('/getpeerinfo')
-def get_peer_info():
-    my_ip = urlopen('http://ip.42.pl/raw').read()
-    req = ln.GetInfoRequest()
-    res = stub.GetInfo(req)
-    return jsonify({"pubkey": res.identity_pubkey, "port": LND_PORT})
 
 @app.route('/<string:invoice>')
 def pay_invoice(invoice):

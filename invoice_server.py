@@ -33,17 +33,6 @@ def generate_invoice():
     r_hash = r_hash_base64.decode('utf-8')
     return jsonify({"r_hash": r_hash, "payment_request": add_invoice_resp.payment_request})
 
-@app.route('/addpeer')
-def addpeer():
-    pubkey = request.args.get('pubkey')
-    host = request.args.get('host')
-    port = request.args.get('port')
-    addr = pubkey + "@" + host + ":" + port
-    req = ln.ConnectPeerRequest(addr=addr)
-    res = stub.ConnectPeer(req)
-    print(res)
-    return str(res.peer_id)
-
 @app.route('/checkpayment/<path:r_hash>')
 def check_invoices(r_hash):
     r_hash_base64 = r_hash.encode('utf-8')
