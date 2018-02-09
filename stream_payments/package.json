@@ -9,6 +9,7 @@
     "react-scripts": "1.1.0",
     "react-youtube": "^7.5.0"
   },
+  "homepage": "localhost:12344/stream_payments/build/",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

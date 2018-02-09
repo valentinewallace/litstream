@@ -9,23 +9,24 @@ class Main extends Component {
 
   constructor(props) {
     super(props); 
-    let videoObjs = []
-    for (let id in videoIDs) {
+    let videoObjs = [];
+    for (let i = 0; i < videoIDs.length; i++) {
       videoObjs.push({
         amountPaid: 0,
         timerID: null,
         player: null,
         videoMessage: "0 satoshis paid to creator."
-      })
+      });
     }
     this.state = {
       videos: videoObjs,
       clientIP: null,
       clientPubKey: null,
       clientPeerID: null,
-      clientInfo: "Attempting to connect to client..."
+      clientInfo: "Attempting to connect to client...",
+      paymentFailed: false
     }; 
-    this.connectClient()
+    this.connectClient();
   }
 
   render() {
@@ -79,7 +80,7 @@ class Main extends Component {
     const peerAdded = await this.addPeer(pubkey, ip, port);
     if (peerAdded) {
       this.setState({peerAdded: true});
-      this.setState({clientInfo: "Connected to client."})
+      this.setState({clientInfo: "Connected to client."});
     } else {
       this.setState({peerAdded: false});
     }
@@ -130,14 +131,14 @@ class Main extends Component {
           if (xhttp.readyState === 4) {
             if (xhttp.status === 200) {
               let response = JSON.parse(xhttp.responseText);
-              resolve([response.pubkey, response.port])
+              resolve([response.pubkey, response.port]);
               this.setState({clientPubKey: response.pubkey});
             } else {
               resolve(null);
             }
           }
       };
-      let url = "http://" + ip + ":12348" + "/getpeerinfo"
+      let url = "http://" + ip + ":12348/getpeerinfo";
       xhttp.open("GET", url, true);
       xhttp.send(null);
     });
@@ -149,7 +150,7 @@ class Main extends Component {
     video.player.pauseVideo();
     video.videoMessage = errorMsg;
     updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos})
+    this.setState({videos: updatedVideos});
   }
 
   processInvoiceSuccess(ind) {
@@ -159,7 +160,7 @@ class Main extends Component {
     video.videoMessage = newAmount.toString() + " satoshis paid to creator.";
     video.amountPaid = newAmount;
     updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos})    
+    this.setState({videos: updatedVideos}); 
   }
 
   _sleep(ms) {
@@ -167,6 +168,10 @@ class Main extends Component {
   }
 
   async chargeUser(ind) {
+    if (this.state.paymentFailed) {
+      this.processInvoiceFailure(ind, "Payment failed.");
+      return;
+    }
     const invoice = await this.generateInvoice();
     if (invoice == null) {
       this.processInvoiceFailure(ind, "Invoice generation failed.");
@@ -182,14 +187,10 @@ class Main extends Component {
     if (paymentReqSuccess === false) {
       this.processInvoiceFailure(ind, "Connection to payment server failed.");
       return;
-    }
-    await this._sleep(1000);
-    const paymentSuccess = await this.checkPayment(r_hash)
-    if (paymentSuccess) {
-      this.processInvoiceSuccess(ind);
-    } else {
-      this.processInvoiceFailure(ind, "Payment failed.");
-    }
+    } 
+    this.processInvoiceSuccess(ind);
+    // await this._sleep(1000);
+    this.checkPayment(r_hash);
   }
 
   generateInvoice() {
@@ -205,7 +206,7 @@ class Main extends Component {
           }
         }
       };
-      xhttp.open("GET", "http://localhost:12344", true);
+      xhttp.open("GET", "http://localhost:12344/generateinvoice", true);
       xhttp.send(null);
     }); 
   }
@@ -227,25 +228,24 @@ class Main extends Component {
     });
   }
 
-  checkPayment(r_hash) {
-    return new Promise(resolve => {
-      let xhttp = new XMLHttpRequest();
-      xhttp.onreadystatechange = () => {
-          if (xhttp.readyState === 4) {
-            if (xhttp.status === 200) {
-              if (xhttp.responseText == "True") {
-                resolve(true);
-              } else {
-                resolve(false);
-              }
+  async checkPayment(r_hash) {
+    await this._sleep(2000);
+    let xhttp = new XMLHttpRequest();
+    xhttp.onreadystatechange = () => {
+        if (xhttp.readyState === 4) {
+          if (xhttp.status === 200) {
+            if (xhttp.responseText === "True") {
+              this.setState({paymentFailed: false});
             } else {
-              resolve(false);
+              this.setState({paymentFailed: true});
             }
+          } else {
+            this.setState({paymentFailed: true});
           }
-      };
-      xhttp.open("GET", "http://localhost:12344/checkpayment/" + encodeURIComponent(r_hash), true);
-      xhttp.send(null);
-    });
+        }
+    };
+    xhttp.open("GET", "http://localhost:12344/checkpayment/" + encodeURIComponent(r_hash), true);
+    xhttp.send(null);
   }
 
   _onReady(event, ind) {
@@ -254,7 +254,7 @@ class Main extends Component {
     const video = updatedVideos[ind];
     video.player = event.target;
     updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos})
+    this.setState({videos: updatedVideos});
   }
 
   _onPlay(ind) {
@@ -265,17 +265,17 @@ class Main extends Component {
     if (video.timerID == null) {
       let timer = setInterval(
         () => this.chargeUser(ind), 
-        3000
+        2000
       );
       video.timerID = timer;
     }
 
     updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos})
+    this.setState({videos: updatedVideos});
   }
 
   _onPause(ind) {
-    console.log("pausing video, clearing timer")
+    console.log("pausing video, clearing timer");
     const updatedVideos = this.state.videos.slice();
     const video = updatedVideos[ind];
     if (video.timerID != null) {
@@ -283,11 +283,11 @@ class Main extends Component {
     }
     video.timerID = null;
     updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos})
+    this.setState({videos: updatedVideos});
   }
 
   _onEnd(ind) {
-    console.log("video ended, clearing timer")
+    console.log("video ended, clearing timer");
     const updatedVideos = this.state.videos.slice();
     const video = updatedVideos[ind];
     if (video.timerID != null) {
@@ -295,11 +295,11 @@ class Main extends Component {
     }
     video.timerID = null;
     updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos})
+    this.setState({videos: updatedVideos});
   }
 
   _onError(ind) {
-    console.log("video errored, clearing timer")
+    console.log("video errored, clearing timer");
     const updatedVideos = this.state.videos.slice();
     const video = updatedVideos[ind];
     if (video.timerID != null) {
@@ -307,7 +307,7 @@ class Main extends Component {
     }
     video.timerID = null;
     updatedVideos[ind] = video;
-    this.setState({videos: updatedVideos})
+    this.setState({videos: updatedVideos});
   }
 }
 

@@ -7,7 +7,6 @@ from flask.json import jsonify
 from urllib2 import urlopen
 
 LND_PORT = "10003"
-PATH_TO_TLS_CERT = '/home/valentine/.lnd/tls.cert'
 
 cert = open('/home/valentine/.lnd/tls.cert').read()
 creds = grpc.ssl_channel_credentials(cert)
@@ -31,3 +30,8 @@ def pay_invoice(invoice):
     print("sent_payment:")
     print(sent_payment)
     return invoice
+
+def generate_payment_req(inv):
+    while True:
+        req = inv
+        yield req
