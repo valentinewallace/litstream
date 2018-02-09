@@ -1,171 +1,244 @@
 import React, { Component } from 'react';
-import YouTube from 'react-youtube'; 
 import logo from './logo.svg';
-import './App.css';
+import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import Main from './Main.js'
+import Connect from './Connect.js'
 
+const App = () => (
+  <Router>
+    <Switch>
+      <Route exact path="/" component={Main}/>
+      <Route path="/:ipAddr" component={Connect} />
+    </Switch>
+  </Router>
+); 
 
-class App extends Component {
+//   constructor(props) {
+//     super(props); 
+//     let videoObjs = []
+//     for (let id in videoIDs) {
+//       videoObjs.push({
+//         amountPaid: 0,
+//         timerID: null,
+//         player: null,
+//         videoMessage: "0 satoshis paid to creator."
+//       })
+//     }
+//     this.state = {
+//       videos: videoObjs
+//     }; 
+//   }
 
-  constructor(props) {
-    super(props); 
-    this.state = {
-      invoice: null,
-      r_hash: null,
-      amountPaid: 0,
-      timerID: null,
-      player: null
-    }; 
-  }
+//   render() {
+//     return (
+//       <div className="App">
+//         <header className="App-header">
+//           <img src={logo} className="App-logo" alt="logo" />
+//           <h1 className="App-title">YouTubeKYS</h1>
+//         </header>
+//         <header className="Setup-instructions">
+//           <h3 className=
+//         </header>
+//         <form onSubmit={() => this.connectToClient()}>
+//           <label>
+//             Public IP:
+//             <input type="text" value={this.state.ipAddr} />
+//           </label>
+//           <input type="submit" value="Submit" />
+//         </form>
+//         <ul>
+//           {videoIDs.map((name, index) => {
+//             return (
+//               <div>
+//                 <YouTube
+//                  videoId={name}
+//                  onReady={(event) => this._onReady(event, index)}
+//                  onPlay={() => this._onPlay(index)}
+//                  onPause={() => this._onPause(index)}
+//                  onEnd={() => this._onEnd(index)}
+//                  onError={() => this._onError(index)}
+//                 />
+//                 <p>{this.state.videos.length > index ? this.state.videos[index].videoMessage : "0 satoshis paid to creator."}</p>
+//               </div>
+//             )
+//           })}
+//         </ul>
+//       </div>
+//     );
+//   }
 
-  render() {
-    return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">{this.state.invoice}</h1>
-        </header>
-        <YouTube
-         videoId="Mh5LY4Mz15o"
-         onReady={(event) => this._onReady(event)}
-         onPlay={() => this._onPlay()}
-         onPause={() => this._onPause()}
-         onEnd={() => this._onEnd()}
-         onError={() => this._onError()}
-        />
-        <p>{this.state.amountPaid} satoshis paid to creator</p>
-      </div>
-    );
-  }
+//   processInvoiceFailure(ind, errorMsg) {
+//     const updatedVideos = this.state.videos;
+//     const video = updatedVideos[ind];
+//     video.player.pauseVideo();
+//     video.videoMessage = errorMsg;
+//     updatedVideos[ind] = video;
+//     this.setState({videos: updatedVideos})
+//   }
 
-  componentDidMount() {
-    // this.timerID = setInterval(
-    //   () => this.generateInvoice(), 
-    //   5000
-    // ); 
-    console.log("componentDidMount")
-  }
+//   processInvoiceSuccess(ind) {
+//     const updatedVideos = this.state.videos;
+//     const video = updatedVideos[ind];
+//     const newAmount = video.amountPaid + 1000; 
+//     video.videoMessage = newAmount.toString() + " satoshis paid to creator.";
+//     video.amountPaid = newAmount;
+//     updatedVideos[ind] = video;
+//     this.setState({videos: updatedVideos})    
+//   }
 
-  generateInvoice() {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = () => {
-        if (xhttp.readyState === 4) {
-          if (xhttp.status === 200) {
-            let response = JSON.parse(xhttp.responseText)
-            console.log("about to set state w/ r_hash")
-            console.log(response.r_hash)
-            this.setState({
-              invoice: response.payment_request, 
-              r_hash: response.r_hash
-            }); 
-          } else {
-            this.setState({invoice: "failed to get invoice"})
-          }
-        }
-    };
-    xhttp.open("GET", "http://localhost:12344", true);
-    xhttp.send(null);
-  }
+//   _sleep(ms) {
+//     return new Promise(resolve => setTimeout(resolve, ms));
+//   }
 
-  payInvoice(invoice) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = () => {
-        if (xhttp.readyState === 4) {
-          if (xhttp.status === 200) {
-           this.setState({paymentReqSuccess: true}); 
-          } else {
-            this.setState({paymentReqSuccess: false})
-          }
-        }
-    };
-    xhttp.open("GET", "http://localhost:12348/" + invoice, true);
-    xhttp.send(null);
-  }
+//   async chargeUser(ind) {
+//     console.log("in chargeUser")
+//     const invoice = await this.generateInvoice();
+//     console.log("just generateInvoice'd")
+//     if (invoice == null) {
+//       this.processInvoiceFailure(ind, "Invoice generation failed.");
+//       return;
+//     }
+//     const paymentReq = invoice[0];
+//     const r_hash = invoice[1];
+//     const paymentReqSuccess = await this.payInvoice(paymentReq)
+//     if (paymentReqSuccess === false) {
+//       this.processInvoiceFailure(ind, "Connection to payment server failed.");
+//       return;
+//     }
+//     await this._sleep(2000);
+//     const paymentSuccess = await this.checkPayment(r_hash)
+//     if (paymentSuccess) {
+//       this.processInvoiceSuccess(ind);
+//     } else {
+//       this.processInvoiceFailure(ind, "Payment failed.");
+//     }
+//   }
 
-  checkPayment() {
-    var xhttp = new XMLHttpRequest();
-    xhttp.onreadystatechange = () => {
-        if (xhttp.readyState === 4) {
-          if (xhttp.status === 200) {
-            console.log("rv of checkPayment:")
-            console.log(xhttp.responseText)
-          } else {
-            console.log("check payment server call failed")
-          }
-        }
-    };
-    console.log("about to check payment w/ r_hash:")
-    console.log(this.state.r_hash)
-    // xhttp.open("GET", "http://localhost:12344/check_payment/" + encodeURIComponent(this.state.r_hash), true);
-    xhttp.open("GET", "http://localhost:12344/" + encodeURIComponent(this.state.r_hash), true);
-    // xhttp.open("GET", "http://localhost:12344/test", true);
+//   generateInvoice() {
+//     console.log("in generateInvoice")
+//     return new Promise(resolve => {
+//       var xhttp = new XMLHttpRequest();
+//       xhttp.onreadystatechange = () => {
+//         console.log("readystate:")
+//         console.log(xhttp.readyState)
+//         if (xhttp.readyState === 4) {
+//           console.log("readystate is 4")
+//           if (xhttp.status === 200) {
+//             console.log("status is 200")
+//             let response = JSON.parse(xhttp.responseText);
+//             resolve([response.payment_request, response.r_hash]);
+//           } else {
+//             console.log("status is not 200")
+//             console.log(xhttp.status)
+//             resolve(null);
+//           }
+//         }
+//       };
+//       xhttp.open("GET", "http://localhost:12344", true);
+//       xhttp.send(null);
+//       console.log("just sent req")
+//     }); 
+//   }
 
-    // xhttp.open("GET", "http://localhost:12344/check_payment/" + this.state.r_hash, true);
-    xhttp.send(null);
-  }
+//   payInvoice(invoice) {
+//     return new Promise(resolve => {
+//       let xhttp = new XMLHttpRequest();
+//       xhttp.onreadystatechange = () => {
+//           if (xhttp.readyState === 4) {
+//             if (xhttp.status === 200) {
+//               resolve(true);
+//             } else {
+//               resolve(false);
+//             }
+//           }
+//       };
+//       xhttp.open("GET", "http://136.25.173.204:12348/" + invoice, true);
+//       xhttp.send(null);
+//     });
+//   }
 
-  _onReady(event) {
-    console.log("video is ready to play"); 
-    this.setState({player: event.target}); 
-  }
+//   checkPayment(r_hash) {
+//     return new Promise(resolve => {
+//       let xhttp = new XMLHttpRequest();
+//       xhttp.onreadystatechange = () => {
+//           if (xhttp.readyState === 4) {
+//             if (xhttp.status === 200) {
+//               if (xhttp.responseText == "True") {
+//                 resolve(true);
+//               } else {
+//                 resolve(false);
+//               }
+//             } else {
+//               resolve(false);
+//             }
+//           }
+//       };
+//       xhttp.open("GET", "http://localhost:12344/" + encodeURIComponent(r_hash), true);
+//       xhttp.send(null);
+//     });
+//   }
 
-  _onPlay() {
-    console.log("video playing"); 
-    if (this.state.timerID == null) {
-      let timer = setInterval(
-        () => this.generateInvoice(), 
-        5000
-      );
-      this.setState({timerID: timer})   
-    }
-  }
+//   _onReady(event, ind) {
+//     console.log("video is ready to play"); 
+//     const updatedVideos = this.state.videos;
+//     const video = updatedVideos[ind];
+//     video.player = event.target;
+//     updatedVideos[ind] = video;
+//     this.setState({videos: updatedVideos})
+//   }
 
-  _onPause() {
-    console.log("pausing video, clearing timer")
-    if (this.state.timerID != null) {
-      clearInterval(this.state.timerID);
-    }
-    this.setState({timerID: null})
-  }
+//   _onPlay(ind) {
+//     console.log("video playing"); 
+//     const updatedVideos = this.state.videos.slice();
+//     const video = updatedVideos[ind];
 
-  _onEnd() {
-    console.log("video ended, clearing timer")
-    if (this.state.timerID != null) {
-      clearInterval(this.state.timerID);
-    }
-    this.setState({timerID: null})
-  }
+//     if (video.timerID == null) {
+//       let timer = setInterval(
+//         () => this.chargeUser(ind), 
+//         5000
+//       );
+//       video.timerID = timer;
+//     }
 
-  _onError() {
-    console.log("video errored, clearing timer")
-    if (this.state.timerID != null) {
-      clearInterval(this.state.timerID);
-    }
-    this.setState({timerID: null})
-  }
+//     updatedVideos[ind] = video;
+//     this.setState({videos: updatedVideos})
+//   }
 
-  componentWillUpdate(nextProps, nextState) {
-    if (this.state.invoice !== nextState.invoice) {
-      console.log("about to pay invoice")
-      this.payInvoice(nextState.invoice)
-      this.setState({amountPaid: this.state.amountPaid + 1000})
-    }
+//   _onPause(ind) {
+//     console.log("pausing video, clearing timer")
+//     const updatedVideos = this.state.videos.slice();
+//     const video = updatedVideos[ind];
+//     if (video.timerID != null) {
+//       clearInterval(video.timerID);
+//     }
+//     video.timerID = null;
+//     updatedVideos[ind] = video;
+//     this.setState({videos: updatedVideos})
+//   }
 
-  }
+//   _onEnd(ind) {
+//     console.log("video ended, clearing timer")
+//     const updatedVideos = this.state.videos.slice();
+//     const video = updatedVideos[ind];
+//     if (video.timerID != null) {
+//       clearInterval(video.timerID);
+//     }
+//     video.timerID = null;
+//     updatedVideos[ind] = video;
+//     this.setState({videos: updatedVideos})
+//   }
 
-  componentDidUpdate(prevProps, prevState) {
-    if (this.state.r_hash !== prevState.r_hash && this.state.r_hash != null) {
-      console.log("about to check payment w/ new r_hash")
-      console.log(this.state.r_hash)
-      this.checkPayment()      
-    }    
-  }
-
-  componentWillUnmount() {
-    if (this.state.timerID != null) {
-      clearInterval(this.state.timerID);
-    }
-    this.setState({timerID: null})
-  }
-}
+//   _onError(ind) {
+//     console.log("video errored, clearing timer")
+//     const updatedVideos = this.state.videos.slice();
+//     const video = updatedVideos[ind];
+//     if (video.timerID != null) {
+//       clearInterval(video.timerID);
+//     }
+//     video.timerID = null;
+//     updatedVideos[ind] = video;
+//     this.setState({videos: updatedVideos})
+//   }
+// }
 
 export default App;
