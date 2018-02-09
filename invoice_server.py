@@ -3,6 +3,7 @@ import grpc
 from flask import Flask
 from flask_cors import CORS
 from flask.json import jsonify
+from flask import request
 import codecs
 import time
 
@@ -16,12 +17,23 @@ CORS(app)
 
 @app.route('/')
 def generate_invoice():
-    add_invoice_resp = stub.AddInvoice(ln.Invoice(value=1000, memo="TestMemo"))
+    add_invoice_resp = stub.AddInvoice(ln.Invoice(value=10, memo="TestMemo"))
     r_hash_base64 = codecs.encode(add_invoice_resp.r_hash, 'base64')
     r_hash = r_hash_base64.decode('utf-8')
     return jsonify({"r_hash": r_hash, "payment_request": add_invoice_resp.payment_request})
 
-@app.route('/<path:r_hash>')
+@app.route('/addpeer')
+def addpeer():
+    pubkey = request.args.get('pubkey')
+    host = request.args.get('host')
+    port = request.args.get('port')
+    addr = pubkey + "@" + host + ":" + port
+    req = ln.ConnectPeerRequest(addr=addr)
+    res = stub.ConnectPeer(req)
+    print(res)
+    return str(res.peer_id)
+
+@app.route('/checkpayment/<path:r_hash>')
 def check_invoices(r_hash):
     r_hash_base64 = r_hash.encode('utf-8')
     r_hash_bytes = str(codecs.decode(r_hash_base64, 'base64'))

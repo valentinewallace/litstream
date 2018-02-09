@@ -4,7 +4,6 @@ import logo from './logo.svg';
 import './Main.css';
 
 var videoIDs = ["Mh5LY4Mz15o", "eWuRwu2DhwU", "6lXvrQzUhj4", "M_dmiWx97SI"]
-var peerAddr = "033b83af1dcbdd5375ede3334b98ddf19d0f9cd1a805e4ff96ee7422e24c978e4c@localhost:12344"
 
 class Main extends Component {
 
@@ -22,7 +21,9 @@ class Main extends Component {
     this.state = {
       videos: videoObjs,
       clientIP: null,
-      clientPubKey: null
+      clientPubKey: null,
+      clientPeerID: null,
+      clientInfo: "Attempting to connect to client..."
     }; 
     this.connectClient()
   }
@@ -39,6 +40,7 @@ class Main extends Component {
           <img src={logo} className="Main-logo" alt="logo" />
           <h1 className="Main-title">YouTubeKYS</h1>
         </header>
+        <p>{this.state.clientInfo}</p>
         <ol className="vids">
           {videoIDs.map((name, index) => {
             return (
@@ -63,7 +65,42 @@ class Main extends Component {
 
   async connectClient() {
     const ip = await this.getClientIP();
+    if (ip == null) {
+      this.setState({clientInfo: "Failed to retrieve client IP."});
+      return;
+    }
+    const clientInfo = await this.getClientInfo(ip);
+    if (clientInfo == null) {
+      this.setState({clientInfo: "Failed to retrieve client pubkey."});
+      return;
+    }
+    const pubkey = clientInfo[0];
+    const port = clientInfo[1];
+    const peerAdded = await this.addPeer(pubkey, ip, port);
+    if (peerAdded) {
+      this.setState({peerAdded: true});
+      this.setState({clientInfo: "Connected to client."})
+    } else {
+      this.setState({peerAdded: false});
+    }
+  }
 
+  addPeer(pubkey, ip, port) {
+    return new Promise(resolve => {
+      let xhttp = new XMLHttpRequest();
+      xhttp.onreadystatechange = () => {
+          if (xhttp.readyState === 4) {
+            if (xhttp.status === 200) {
+              this.setState({clientPeerID: xhttp.responseText});
+              resolve(true);
+            } else {
+              resolve(false);
+            }
+          }
+      };
+      xhttp.open("GET", "http://localhost:12344/addpeer/?pubkey=" + pubkey + "&host=" + ip + "&port=" + port, true);
+      xhttp.send(null);
+    });    
   }
 
   getClientIP() {
@@ -86,20 +123,22 @@ class Main extends Component {
     });
   }
 
-  getClientPubKey(ip) {
+  getClientInfo(ip) {
     return new Promise(resolve => {
       let xhttp = new XMLHttpRequest();
       xhttp.onreadystatechange = () => {
           if (xhttp.readyState === 4) {
             if (xhttp.status === 200) {
-              this.setState({clientPubKey: xhttp.responseText});
-              resolve(xhttp.responseText);
+              let response = JSON.parse(xhttp.responseText);
+              resolve([response.pubkey, response.port])
+              this.setState({clientPubKey: response.pubkey});
             } else {
               resolve(null);
             }
           }
       };
-      xhttp.open("GET", "http://" + ip + "/getpeerinfo", true);
+      let url = "http://" + ip + ":12348" + "/getpeerinfo"
+      xhttp.open("GET", url, true);
       xhttp.send(null);
     });
   }
@@ -116,7 +155,7 @@ class Main extends Component {
   processInvoiceSuccess(ind) {
     const updatedVideos = this.state.videos;
     const video = updatedVideos[ind];
-    const newAmount = video.amountPaid + 1000; 
+    const newAmount = video.amountPaid + 10; 
     video.videoMessage = newAmount.toString() + " satoshis paid to creator.";
     video.amountPaid = newAmount;
     updatedVideos[ind] = video;
@@ -128,9 +167,7 @@ class Main extends Component {
   }
 
   async chargeUser(ind) {
-    console.log("in chargeUser")
     const invoice = await this.generateInvoice();
-    console.log("just generateInvoice'd")
     if (invoice == null) {
       this.processInvoiceFailure(ind, "Invoice generation failed.");
       return;
@@ -146,7 +183,7 @@ class Main extends Component {
       this.processInvoiceFailure(ind, "Connection to payment server failed.");
       return;
     }
-    await this._sleep(2000);
+    await this._sleep(1000);
     const paymentSuccess = await this.checkPayment(r_hash)
     if (paymentSuccess) {
       this.processInvoiceSuccess(ind);
@@ -206,7 +243,7 @@ class Main extends Component {
             }
           }
       };
-      xhttp.open("GET", "http://localhost:12344/" + encodeURIComponent(r_hash), true);
+      xhttp.open("GET", "http://localhost:12344/checkpayment/" + encodeURIComponent(r_hash), true);
       xhttp.send(null);
     });
   }
@@ -228,7 +265,7 @@ class Main extends Component {
     if (video.timerID == null) {
       let timer = setInterval(
         () => this.chargeUser(ind), 
-        5000
+        3000
       );
       video.timerID = timer;
     }
