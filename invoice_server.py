@@ -22,6 +22,10 @@ def send_home():
 def send_static():
     return send_from_directory('stream_payments/build/', path)
 
+@app.route('/static/<path:path>')
+def send_static_file(path):
+    return send_from_directory('stream_payments/build/static/', path)
+
 @app.route('/generateinvoice')
 def generate_invoice():
     add_invoice_resp = stub.AddInvoice(ln.Invoice(value=10, memo="TestMemo"))
@@ -47,6 +51,3 @@ def check_invoices(r_hash):
     invoice_resp = stub.LookupInvoice(ln.PaymentHash(r_hash=r_hash_bytes))
     return str(invoice_resp.settled)
 
-@app.route('/static/<path:path>')
-def send_static_file(path):
-    return send_from_directory('stream_payments/build/static/', path)
