@@ -1,0 +1,10 @@
+2018-02-09 12:56:42.110 [WRN] LTND: open /home/ubuntu/.lnd/lnd.conf: no such file or directory
+2018-02-09 12:56:42.110 [INF] LTND: Version 0.3.0-alpha
+2018-02-09 12:56:42.164 [INF] CHDB: Checking for schema update: latest_version=0, db_version=0
+2018-02-09 12:56:42.164 [INF] RPCS: Generating TLS certificates...
+2018-02-09 12:57:05.052 [INF] RPCS: Done generating TLS certificates
+2018-02-09 12:57:05.246 [INF] RPCS: password gRPC proxy started at 127.0.0.1:8001
+2018-02-09 12:57:05.246 [INF] RPCS: password RPC server listening on 127.0.0.1:10001
+2018-02-09 12:57:05.246 [INF] LTND: Waiting for wallet encryption password. Use `lncli create` to create wallet, or `lncli unlock` to unlock already created wallet.
+2018-02-09 12:58:35.600 [INF] LTND: Primary chain is set to: bitcoin
+2018-02-09 12:58:35.601 [INF] LTND: Initializing btcd backed fee estimator
