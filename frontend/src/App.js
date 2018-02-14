@@ -1,9 +1,8 @@
 import React, { Component } from 'react';
 import YouTube from 'react-youtube'; 
-import logo from './logo.svg';
 import './App.css';
-import $ from 'jquery';
-var videoIDs = ["Mh5LY4Mz15o", "eWuRwu2DhwU", "6lXvrQzUhj4", "M_dmiWx97SI"]
+
+var videoIDs = ["Mh5LY4Mz15o", "eWuRwu2DhwU", "6lXvrQzUhj4", "iFZChBPQvXY"];
 
 class App extends Component {
 
@@ -20,10 +19,8 @@ class App extends Component {
     }
     this.state = {
       videos: videoObjs,
-      clientIP: null,
       paymentFailed: false
     }; 
-    this.getClientIP();
   }
 
   render() {
@@ -33,10 +30,9 @@ class App extends Component {
     };
 
     return (
-      <div className="Main">
-        <header className="Main-header">
-          <img src={logo} className="Main-logo" alt="logo" />
-          <h1 className="Main-title">YouTubeKYS</h1>
+      <div className="App">
+        <header className="App-header">
+          <h1 className="App-title">LitStream</h1>
         </header>
         <p>{this.state.clientInfo}</p>
         <ol className="vids">
@@ -59,58 +55,6 @@ class App extends Component {
         </ol>
       </div>
     );
-  }
-
-  // Retrieve client IP address to send them invoices.
-  getClientIP() {
-    console.log("in getclientIP");
-    return new Promise(resolve => {
-//      $.get("http://freegeoip.net/json/", function(data) { 
-//          console.log("fetched freegeoip data");
-        $.getJSON("http://freegeoip.net/json?callback=?", function(data) { console.log("getjson success"); console.log(data);}).fail(function() { console.log("failure");}).error(function(one, two, three) { console.log("error??"), console.log(one)});  
-        
-//          console.log(data);}).fail(function() {
-//              console.log("error");
-//          })
-//          .done(function() {
-//              console.log("done");
-//          })
-//          .always(function() {
-//              console.log("complete");
-//          })
-//        $.ajax({
-//            type: 'GET',
-//            url: 'http://freegeoip.net/json/',
-//	    dataType: 'jsonp',
-//            success: function(data) {
-//                console.log("ajax success");
-//                console.log(data);
-//            },
-//            error: function(jqXHR, textStatus, errorThrown) {
-//            	console.log("ajax error");
-//                console.log(jqXHR);
-//                console.log(textStatus);
-//                console.log(errorThrown);
- //           }});
-
-//      let xhttp = new XMLHttpRequest();
-//      xhttp.onreadystatechange = () => {
-//          if (xhttp.readyState === 4) {
-//            if (xhttp.status === 200) {
-//              let ip = JSON.parse(xhttp.responseText).ip;
-//              this.setState({clientIP: ip, clientInfo: "Retrieved client IP."});
-//              resolve(true);
-//            } else {
-//	      console.log("this.status on failed to get ip:");
-//              console.log(xhttp.status)
-//              this.setState({clientInfo: "Failed to fetch client IP."});
-//              resolve(false);
-//            }
-//          }
-//      };
-//      xhttp.open("GET", "http://freegeoip.net/json/", true);
-//      xhttp.send(null);
-    });
   }
 
   processInvoiceFailure(ind, errorMsg) {
@@ -137,18 +81,6 @@ class App extends Component {
   }
 
   async chargeUser(ind) {
-    if (this.state.paymentFailed) {
-      this.processInvoiceFailure(ind, "Payment failed.");
-      return;
-    }
-    if (this.state.clientIP == null) {
-      let IPsuccess = await this.getClientIP()
-      if (IPsuccess == false) {
-        console.log("IPSuccess was false")
-        this.processInvoiceFailure(ind, "Failed to fetch client IP.");
-        return;
-      }
-    }
     const invoice = await this.generateInvoice();
     if (invoice == null) {
       this.processInvoiceFailure(ind, "Invoice generation failed.");
@@ -156,18 +88,13 @@ class App extends Component {
     }
     const paymentReq = invoice[0];
     const r_hash = invoice[1];
-    if (this.state.clientIP == null) {
-      console.log("this.state.clientIP was null")
-      this.processInvoiceFailure(ind, "Failed to fetch client IP.");
-      return;
-    }
-    const paymentReqSuccess = await this.payInvoice(paymentReq)
-    if (paymentReqSuccess === false) {
-      this.processInvoiceFailure(ind, "Connection to payment server failed.");
+    const clientIP = invoice[2];
+    const paymentReqInfo = await this.payInvoice(paymentReq, clientIP)
+    if (paymentReqInfo !== "Success") {
+      this.processInvoiceFailure(ind, paymentReqInfo);
       return;
     } 
-    this.processInvoiceSuccess(ind);
-    this.checkPayment(r_hash);
+    this.checkPayment(r_hash, ind);
   }
 
   generateInvoice() {
@@ -177,52 +104,63 @@ class App extends Component {
         if (xhttp.readyState === 4) {
           if (xhttp.status === 200) {
             let response = JSON.parse(xhttp.responseText);
-            resolve([response.payment_request, response.r_hash]);
+            resolve([response.payment_request, response.r_hash, response.ip]);
           } else {
+            console.log("xhttp.status in generateInvoice:");
+            console.log(xhttp.status);
             resolve(null);
           }
         }
       };
-      xhttp.open("GET", "http://localhost:12344/generateinvoice", true);
+      xhttp.open("GET", "http://ec2-52-53-90-150.us-west-1.compute.amazonaws.com/generateinvoice", true);
       xhttp.send(null);
     }); 
   }
 
-  payInvoice(invoice) {
+  payInvoice(invoice, clientIP) {
     return new Promise(resolve => {
       let xhttp = new XMLHttpRequest();
       xhttp.onreadystatechange = () => {
           if (xhttp.readyState === 4) {
             if (xhttp.status === 200) {
-              resolve(true);
+              if (xhttp.responseText.indexOf("unable to find a path to destination") !== -1) {
+                resolve("Payment failed: unable to find a path between lnd nodes. Solution: open a channel at 03a2102f6978b9e5c6a2dd39697f95b36a7992a60ca65e0316dcd517108e8da171@52.53.90.150:9735");
+              } else {
+                resolve("Success");
+              }
             } else {
-              resolve(false);
+              resolve("Payment failed: unable to connect to client. Check your server?");
             }
           }
       };
-      xhttp.open("GET", "http://" + this.state.clientIP + ":12348/" + invoice, true);
+      xhttp.open("GET", "http://" + clientIP + ":5000/" + invoice, true);
       xhttp.send(null);
     });
   }
 
-  async checkPayment(r_hash) {
+  async checkPayment(r_hash, ind) {
     await this._sleep(2000);
     let xhttp = new XMLHttpRequest();
     xhttp.onreadystatechange = () => {
         if (xhttp.readyState === 4) {
           if (xhttp.status === 200) {
             if (xhttp.responseText === "True") {
+              this.processInvoiceSuccess(ind);
               this.setState({paymentFailed: false, clientInfo: "Connected to client."});
             } else {
+              this.processInvoiceFailure(ind, "Payment failed: client did not pay invoice.");
               this.setState({paymentFailed: true});
             }
           } else {
+            console.log("failed to pay in checkPayment");
+            console.log(xhttp.status);
+            this.processInvoiceFailure(ind, "Payment failed: unable to connect to server. Please open or +1 an issue.");
             this.setState({paymentFailed: true});
           }
         }
     };
-    xhttp.open("GET", "http://localhost:12344/checkpayment/" + encodeURIComponent(r_hash), true);
-    xhttp.send(null);
+    xhttp.open("POST", "http://ec2-52-53-90-150.us-west-1.compute.amazonaws.com/checkpayment", true);
+    xhttp.send(r_hash);
   }
 
   _onReady(event, ind) {

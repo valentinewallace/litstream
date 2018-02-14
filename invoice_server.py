@@ -5,9 +5,7 @@ from flask_cors import CORS
 from flask.json import jsonify
 import codecs
 import time
-from urllib2 import urlopen
 
-# cert = open('/home/ubuntu/.lnd/tls.cert').read()
 cert = open('/var/www/html/litstream/tls.cert').read()
 creds = grpc.ssl_channel_credentials(cert)
 channel = grpc.secure_channel('localhost:10009', creds)
@@ -36,8 +34,9 @@ def generate_invoice():
     r_hash = r_hash_base64.decode('utf-8')
     return jsonify({"r_hash": r_hash, "payment_request": add_invoice_resp.payment_request, "ip": client_ip})
 
-@app.route('/checkpayment/<path:r_hash>')
-def check_invoices(r_hash):
+@app.route('/checkpayment', methods = ['POST'])
+def check_invoices():
+    r_hash = request.data
     r_hash_base64 = r_hash.encode('utf-8')
     r_hash_bytes = str(codecs.decode(r_hash_base64, 'base64'))
     invoice_resp = stub.LookupInvoice(ln.PaymentHash(r_hash=r_hash_bytes))
